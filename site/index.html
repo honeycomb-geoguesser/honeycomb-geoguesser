@@ -31,6 +31,12 @@ body::before{content:""; position:fixed; inset:0; z-index:-1;
   background:linear-gradient(rgba(81,101,134,.72), rgba(81,101,134,.72)), url("bg.jpg?v=1") center/cover no-repeat, var(--bg)}
    .legal{font-size:.85rem; color:var(--muted); margin:.9em 0 0}
    .legal a{color:var(--ink)}
+.btn.discord{background:#5865F2; color:#fff}
+.whoami{margin:0 0 12px; color:var(--muted); font-size:.95rem}
+.whoami b{color:var(--ink)}
+.linkbtn{appearance:none; background:none; border:0; padding:0; color:var(--ink); text-decoration:underline; cursor:pointer; font:inherit}
+.optin{display:flex; gap:.5em; align-items:flex-start; font-size:.9rem; color:var(--muted); margin:0 0 16px; max-width:360px; cursor:pointer}
+.optin input{margin-top:.3em; accent-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -42,9 +48,16 @@ body::before{content:""; position:fixed; inset:0; z-index:-1;
     <div>
       <h1 class="sr-only"><span id="gameTitle">Honeycomb Geoguesser</span></h1>
       <p class="lede">From lush meadows to deep caverns, how well do you know Sota7? Spot the location, pin it on the map, and beat the clock. Faster flashes, bigger scores.</p>
+      <div id="signedOut" class="hidden">
+        <button class="btn discord" id="discordBtn" type="button">Sign in with Discord to play</button>
+      </div>
+      <div id="signedIn" class="hidden">
+      <p class="whoami">Signed in as <b id="discordName"></b> · <button type="button" class="linkbtn" id="signOutBtn">Sign out</button></p>
       <div class="namefield">
         <label for="nameInput">Explorer Name (must be unique, special characters welcome)</label>
         <input id="nameInput" maxlength="24" autocomplete="nickname" placeholder="Enter a name">
+      </div>
+      <label class="optin"><input type="checkbox" id="optIn"> Send me Honeycomb news and updates by email</label>
       </div>
       <fieldset class="modes hidden" id="modePicker">
         <legend>Screenshot speed</legend>
@@ -148,8 +161,8 @@ const errMsg=e=>(e&&e.message)||'Something went wrong. Try again.';
   try{
     let {data:{session}}=await sb.auth.getSession();
     if(session){ const {error:ue}=await sb.auth.getUser(); if(ue){ await sb.auth.signOut({scope:'local'}); session=null } }
-    if(!session){ const {data,error}=await sb.auth.signInAnonymously(); if(error) throw error; session=data.session }
-    uid=session.user.id;
+    if(session&&session.user.is_anonymous){ await sb.auth.signOut({scope:'local'}); session=null }
+    authUser=session?.user||null; uid=authUser?.id||null;
   }catch(e){ console.error(e); $('homeStatus').textContent='Couldn’t connect to the game server. Refresh to try again.'; return }
 
   const [{data:s},{data:me},{data:count}]=await Promise.all([
@@ -158,7 +171,9 @@ const errMsg=e=>(e&&e.message)||'Something went wrong. Try again.';
     sb.rpc('location_count')
   ]);
   settings=s;
-  savedName=me?.name||''; $('nameInput').value=savedName;
+  savedName=me?.name||''; $('nameInput').value=savedName||discordDisplay();
+  renderAccount();
+  if(uid){ const {data:mk}=await sb.from('player_marketing').select('opted_in').eq('player_id',uid).maybeSingle(); $('optIn').checked=!!mk?.opted_in }
   const title=settings?.title||'Honeycomb Geoguesser'; $('gameTitle').textContent=title; document.title=title;
   modes=Array.isArray(settings?.modes)?[...settings.modes].sort((a,b)=>a.ms-b.ms):[];
   renderModes();
@@ -178,7 +193,29 @@ const errMsg=e=>(e&&e.message)||'Something went wrong. Try again.';
     .subscribe();
 })();
 
-/* ---------------- Speed picker ---------------- */
+/* ---------------- Discord account ---------------- */
+var authUser=null;
+function discordDisplay(){ const m=authUser?.user_metadata||{}; return (m.custom_claims?.global_name||m.full_name||m.name||'').replace(/#0$/,'').slice(0,24) }
+function renderAccount(){
+  const on=!!authUser;
+  $('signedOut').classList.toggle('hidden',on);
+  $('signedIn').classList.toggle('hidden',!on);
+  $('playBtn').classList.toggle('hidden',!on);
+  if(on) $('discordName').textContent=discordDisplay()||'Discord user';
+}
+$('discordBtn').onclick=async()=>{
+  $('discordBtn').disabled=true;
+  const {error}=await sb.auth.signInWithOAuth({provider:'discord',options:{redirectTo:location.origin+location.pathname}});
+  if(error){ toast(errMsg(error)); $('discordBtn').disabled=false }
+};
+$('signOutBtn').onclick=async()=>{ await sb.auth.signOut(); location.reload() };
+$('optIn').onchange=async e=>{
+  const on=e.target.checked;
+  const {error}=await sb.rpc('set_marketing_opt_in',{p_opt_in:on});
+  if(error){ toast(errMsg(error)); e.target.checked=!on }
+  else toast(on?'You’re signed up for Honeycomb news.':'You won’t get Honeycomb news emails.');
+};
+  /* ---------------- Speed picker ---------------- */
 function renderModes(){
   let saved=null; try{saved=localStorage.getItem('pinit-mode')}catch{}
   modeId=modes.find(m=>m.id===modeId)?.id||modes.find(m=>m.id===saved)?.id||modes.find(m=>Number(m.mult)===1)?.id||modes[0]?.id||null;
@@ -262,6 +299,7 @@ $('playBtn').onclick=startGame;
 $('againBtn').onclick=startGame;
 
 async function startGame(){
+    if(!authUser){ show('home'); toast('Sign in with Discord to play.'); return }
   const name=$('nameInput').value.trim();
   if(!name){ show('home'); $('nameInput').focus(); $('homeStatus').textContent='Enter a name to play.'; return }
   $('playBtn').disabled=true; $('againBtn').disabled=true;
