@@ -185,9 +185,7 @@ const errMsg=e=>(e&&e.message)||'Something went wrong. Try again.';
   $('playBtn').disabled=!ready;
   if(settings?.map_path){ const pre=new Image(); pre.src=mapImg().url; }
   if(settings?.map_path){ const pre=new Image(); pre.src=pub(settings.map_path); }
-  $('homeStatus').textContent=!authUser?'Sign in with Discord to play.':ready
-    ? `${settings.rounds} rounds${settings.timer?`, ${settings.timer} seconds each`:''}.`
-    : 'This game isn’t ready yet. Check back soon.';
+  $('homeStatus').textContent=!authUser?'':ready?`${settings.rounds} rounds${settings.timer?`, ${settings.timer} seconds each`:''}.`:'This game isn’t ready yet. Check back soon.';
 
   loadBoard();
   let deb; const refresh=()=>{clearTimeout(deb); deb=setTimeout(loadBoard,300)};
