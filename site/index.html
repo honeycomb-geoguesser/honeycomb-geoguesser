@@ -39,6 +39,10 @@ body::before{content:""; position:fixed; inset:0; z-index:-1;
 .optin input{margin-top:.3em; accent-color:var(--accent)}
 .signup-hint{font-size:.9rem; color:var(--muted); margin:.8em 0 1.6em}
 .signup-hint a{color:var(--ink)}
+.social{display:flex; justify-content:center; gap:16px; margin:clamp(32px,6vw,56px) 0 8px}
+.social a{display:inline-flex; align-items:center; justify-content:center; width:48px; height:48px; border-radius:14px; background:var(--surface); border:1px solid var(--line); transition:transform .15s ease}
+.social a:hover{transform:translateY(-2px)}
+.social img{width:26px; height:26px; object-fit:contain}
 </style>
 </head>
 <body>
@@ -80,6 +84,10 @@ body::before{content:""; position:fixed; inset:0; z-index:-1;
       <p class="empty lb-empty">No scores yet. Be the first.</p>
     </section>
   </div>
+  <footer class="social">
+    <a href="https://store.steampowered.com/app/1510440/Honeycomb_The_World_Beyond/" target="_blank" rel="noopener" aria-label="Honeycomb: The World Beyond on Steam"><img src="steam.png" alt=""></a>
+    <a href="https://discord.gg/frozenwayofficial" target="_blank" rel="noopener" aria-label="Honeycomb Discord server"><img src="discord.png" alt=""></a>
+  </footer>
 </main>
 
 <!-- PLAY -->
