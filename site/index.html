@@ -52,12 +52,13 @@ body::before{content:""; position:fixed; inset:0; z-index:-1;
         <button class="btn discord" id="discordBtn" type="button">Sign in with Discord to play</button>
       </div>
       <div id="signedIn" class="hidden">
-      <p class="whoami">Signed in as <b id="discordName"></b> · <button type="button" class="linkbtn" id="signOutBtn">Sign out</button></p>
-      <div class="namefield">
+      <p class="whoami">Playing as <b id="discordName"></b> · <button type="button" class="linkbtn" id="signOutBtn">Sign out</button></p>
+      <div class="namefield hidden">
         <label for="nameInput">Explorer Name (must be unique, special characters welcome)</label>
         <input id="nameInput" maxlength="24" autocomplete="nickname" placeholder="Enter a name">
       </div>
-      <label class="optin"><input type="checkbox" id="optIn"> Send me Honeycomb news and updates by email</label>
+      <label class="optin" id="optInBox"><input type="checkbox" id="optIn"> Send me Honeycomb news and updates by email</label>
+      <p class="optin hidden" id="optedIn">✓ You’re signed up for Honeycomb news · <button type="button" class="linkbtn" id="unsubBtn">Unsubscribe</button></p>
       </div>
       <fieldset class="modes hidden" id="modePicker">
         <legend>Screenshot speed</legend>
@@ -173,7 +174,7 @@ const errMsg=e=>(e&&e.message)||'Something went wrong. Try again.';
   settings=s;
   savedName=me?.name||''; $('nameInput').value=savedName||discordDisplay();
   renderAccount();
-  if(uid){ const {data:mk}=await sb.from('player_marketing').select('opted_in').eq('player_id',uid).maybeSingle(); $('optIn').checked=!!mk?.opted_in }
+  if(uid){ const {data:mk}=await sb.from('player_marketing').select('opted_in').eq('player_id',uid).maybeSingle(); renderOptIn(!!mk?.opted_in) }
   const title=settings?.title||'Honeycomb Geoguesser'; $('gameTitle').textContent=title; document.title=title;
   modes=Array.isArray(settings?.modes)?[...settings.modes].sort((a,b)=>a.ms-b.ms):[];
   renderModes();
@@ -195,13 +196,13 @@ const errMsg=e=>(e&&e.message)||'Something went wrong. Try again.';
 
 /* ---------------- Discord account ---------------- */
 var authUser=null;
-function discordDisplay(){ const m=authUser?.user_metadata||{}; return (m.custom_claims?.global_name||m.full_name||m.name||'').replace(/#0$/,'').slice(0,24) }
+function discordDisplay(){ const m=authUser?.user_metadata||{}; return (m.user_name||m.name||authUser?.email?.split('@')[0]||'').replace(/#0+$/,'').slice(0,28) }
 function renderAccount(){
   const on=!!authUser;
   $('signedOut').classList.toggle('hidden',on);
   $('signedIn').classList.toggle('hidden',!on);
   $('playBtn').classList.toggle('hidden',!on);
-  if(on) $('discordName').textContent=discordDisplay()||'Discord user';
+  if(on){ $('discordName').textContent=savedName||discordDisplay()||'Discord user'; if(!savedName) savedName=discordDisplay() }
 }
 $('discordBtn').onclick=async()=>{
   $('discordBtn').disabled=true;
@@ -209,12 +210,14 @@ $('discordBtn').onclick=async()=>{
   if(error){ toast(errMsg(error)); $('discordBtn').disabled=false }
 };
 $('signOutBtn').onclick=async()=>{ await sb.auth.signOut(); location.reload() };
-$('optIn').onchange=async e=>{
-  const on=e.target.checked;
+function renderOptIn(on){ $('optInBox').classList.toggle('hidden',on); $('optedIn').classList.toggle('hidden',!on); $('optIn').checked=on }
+async function setOptIn(on){
   const {error}=await sb.rpc('set_marketing_opt_in',{p_opt_in:on});
-  if(error){ toast(errMsg(error)); e.target.checked=!on }
-  else toast(on?'You’re signed up for Honeycomb news.':'You won’t get Honeycomb news emails.');
-};
+  if(error){ toast(errMsg(error)); renderOptIn(!on); return }
+  renderOptIn(on); toast(on?'You’re signed up for Honeycomb news.':'You’ve been unsubscribed from Honeycomb news.');
+}
+$('optIn').onchange=e=>setOptIn(e.target.checked);
+$('unsubBtn').onclick=()=>setOptIn(false);
   /* ---------------- Speed picker ---------------- */
 function renderModes(){
   let saved=null; try{saved=localStorage.getItem('pinit-mode')}catch{}
@@ -300,12 +303,10 @@ $('againBtn').onclick=startGame;
 
 async function startGame(){
     if(!authUser){ show('home'); toast('Sign in with Discord to play.'); return }
-  const name=$('nameInput').value.trim();
-  if(!name){ show('home'); $('nameInput').focus(); $('homeStatus').textContent='Enter a name to play.'; return }
   $('playBtn').disabled=true; $('againBtn').disabled=true;
   try{
-    if(name!==savedName){ const {error}=await sb.rpc('set_player_name',{p_name:name}); if(error) throw error; savedName=name }
     const {data,error}=await sb.rpc('start_game',{p_mode:modeId}); if(error) throw error;
+        if(data.name){ savedName=data.name; $('discordName').textContent=data.name }
     game={id:data.game_id, n:data.total_rounds, i:0, total:0, results:[], guess:null, locked:true,
           flash:data.flash_ms, mult:data.mult, label:data.label, mode:modeId};
   }catch(e){ toast(errMsg(e)); $('playBtn').disabled=false; $('againBtn').disabled=false; return }
