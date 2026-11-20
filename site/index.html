@@ -37,6 +37,8 @@ body::before{content:""; position:fixed; inset:0; z-index:-1;
 .linkbtn{appearance:none; background:none; border:0; padding:0; color:var(--ink); text-decoration:underline; cursor:pointer; font:inherit}
 .optin{display:flex; gap:.5em; align-items:flex-start; font-size:.9rem; color:var(--muted); margin:0 0 16px; max-width:360px; cursor:pointer}
 .optin input{margin-top:.3em; accent-color:var(--accent)}
+.signup-hint{font-size:.9rem; color:var(--muted); margin:.8em 0 0}
+.signup-hint a{color:var(--ink)}
 </style>
 </head>
 <body>
@@ -50,6 +52,7 @@ body::before{content:""; position:fixed; inset:0; z-index:-1;
       <p class="lede">From lush meadows to deep caverns, how well do you know Sota7? Spot the location, pin it on the map, and beat the clock. Faster flashes, bigger scores.</p>
       <div id="signedOut" class="hidden">
         <button class="btn discord" id="discordBtn" type="button">Sign in with Discord to play</button>
+                <p class="signup-hint">Don’t have Discord? <a href="https://discord.com/register" target="_blank" rel="noopener">Create a free account</a>, then come back and sign in.</p>
       </div>
       <div id="signedIn" class="hidden">
       <p class="whoami">Playing as <b id="discordName"></b> · <button type="button" class="linkbtn" id="signOutBtn">Sign out</button></p>
